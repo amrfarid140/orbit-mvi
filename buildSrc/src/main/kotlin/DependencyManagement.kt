@@ -21,6 +21,7 @@ object Versions {
     const val markdownLintPlugin = "0.5.0"
 
     const val kotlin = "1.3.50"
+    const val coroutines = "1.3.2"
 
     const val androidLifecycles = "2.1.0"
     const val androidAppCompat = "1.1.0"
@@ -51,6 +52,8 @@ object Versions {
 
 object ProjectDependencies {
     const val kotlinReflect = "org.jetbrains.kotlin:kotlin-reflect:${Versions.kotlin}"
+    const val coroutinesCore = "org.jetbrains.kotlinx:kotlinx-coroutines-core:${Versions.coroutines}"
+    const val coroutinesAndroid = "org.jetbrains.kotlinx:kotlinx-coroutines-android:${Versions.coroutines}"
 
     // Android libraries
     const val androidLifecycleComponents = "androidx.lifecycle:lifecycle-extensions:${Versions.androidLifecycles}"

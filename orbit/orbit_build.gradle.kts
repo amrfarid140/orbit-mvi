@@ -30,6 +30,7 @@ dependencies {
     implementation(ProjectDependencies.rxRelay)
     implementation(ProjectDependencies.rxKotlin)
     implementation(ProjectDependencies.javaxInject)
+    implementation(ProjectDependencies.coroutinesCore)
 
     // Testing
     GroupedDependencies.spekTestsImplementation.forEach { testImplementation(it) }
@@ -37,6 +38,7 @@ dependencies {
 }
 
 tasks.withType<Test> {
+    @Suppress("UnstableApiUsage")
     useJUnitPlatform {
         includeEngines = setOf("spek2")
     }
