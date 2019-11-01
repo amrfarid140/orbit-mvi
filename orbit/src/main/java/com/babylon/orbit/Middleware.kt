@@ -18,11 +18,20 @@ package com.babylon.orbit
 
 import io.reactivex.Observable
 import io.reactivex.subjects.PublishSubject
+import kotlinx.coroutines.flow.Flow
 
 typealias TransformerFunction<STATE> = (Observable<ActionState<STATE, Any>>, PublishSubject<Any>) -> (Observable<(STATE) -> STATE>)
+
+typealias TransformerFunctionFlow<STATE> = (Flow<ActionState<STATE, Any>>, Flow<Any>) -> (Flow<(STATE) -> STATE>)
 
 interface Middleware<STATE : Any, SIDE_EFFECT : Any> {
     val initialState: STATE
     val orbits: List<TransformerFunction<STATE>>
     val sideEffect: Observable<SIDE_EFFECT>
+}
+
+interface MiddlewareFlow<STATE : Any, SIDE_EFFECT : Any> {
+    val initialState: STATE
+    val orbits: List<TransformerFunctionFlow<STATE>>
+    val sideEffect: Flow<SIDE_EFFECT>
 }
