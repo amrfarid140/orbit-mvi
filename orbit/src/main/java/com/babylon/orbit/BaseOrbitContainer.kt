@@ -16,40 +16,38 @@
 
 package com.babylon.orbit
 
-import io.reactivex.Observable
-import io.reactivex.Single
 import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.observables.ConnectableObservable
-import io.reactivex.rxkotlin.plusAssign
-import io.reactivex.subjects.PublishSubject
+import kotlinx.coroutines.channels.ConflatedBroadcastChannel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.singleOrNull
 
 class BaseOrbitContainer<STATE : Any, SIDE_EFFECT : Any>(
     middleware: Middleware<STATE, SIDE_EFFECT>
 ) : OrbitContainer<STATE, SIDE_EFFECT> {
 
-    var state: Single<STATE>
+    var state: Flow<STATE>
         private set
 
-    private val inputRelay: PublishSubject<Any> = PublishSubject.create()
-    override val orbit: ConnectableObservable<STATE>
-    override val sideEffect: Observable<SIDE_EFFECT> = middleware.sideEffect
+    private val inputRelay = ConflatedBroadcastChannel<Any>()
+    override val orbit: Flow<STATE>
+    override val sideEffect: Flow<SIDE_EFFECT> = middleware.sideEffect
 
     private val disposables = CompositeDisposable()
 
     init {
-        state = Single.just(middleware.initialState)
-        orbit = inputRelay.doOnSubscribe { disposables += it }
-            .startWith(LifecycleAction.Created)
-            .map { ActionState(state.blockingGet(), it) } // Attaches the current state to the event
-            .buildOrbit(middleware, inputRelay)
-            .replay(1)
-        orbit.connect { disposables += it }
-        state = orbit
-            .first(middleware.initialState)
+        state = ConflatedBroadcastChannel(middleware.initialState).asFlow()
+
+        val inputFlow = inputRelay.asFlow()
+        orbit = inputFlow.onStart { emit(LifecycleAction.Created) }
+            .map { ActionState(state.singleOrNull()!!, it) }
+            .buildOrbitFlow(middleware, inputFlow)
     }
 
-    override fun sendAction(action: Any) {
-        inputRelay.onNext(action)
+    override suspend fun sendAction(action: Any) {
+        inputRelay.send(action)
     }
 
     override fun disposeOrbit() {

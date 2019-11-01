@@ -16,11 +16,11 @@
 
 package com.babylon.orbit
 
-import io.reactivex.Observable
+import kotlinx.coroutines.flow.Flow
 
 interface OrbitContainer<STATE : Any, EVENT : Any> {
-    val orbit: Observable<STATE>
-    val sideEffect: Observable<EVENT>
-    fun sendAction(action: Any)
+    val orbit: Flow<STATE>
+    val sideEffect: Flow<EVENT>
+    suspend fun sendAction(action: Any)
     fun disposeOrbit()
 }

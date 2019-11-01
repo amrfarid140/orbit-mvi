@@ -1,25 +1,15 @@
 package com.babylon.orbit
 
-import hu.akarnokd.rxjava2.subjects.UnicastWorkSubject
-import io.reactivex.Observable
-import io.reactivex.rxkotlin.cast
-import io.reactivex.schedulers.Schedulers
-import io.reactivex.subjects.Subject
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.BroadcastChannel
 import kotlinx.coroutines.channels.ConflatedBroadcastChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flattenMerge
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.observeOn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
-import kotlin.coroutines.CoroutineContext
 
 /*
 What do we want to log:
@@ -28,21 +18,34 @@ What do we want to log:
 - any outcome (new state emitted, something looped back etc.)
  */
 
+@DslMarker
+annotation class OrbitDsl
+
+fun <STATE : Any, SIDE_EFFECT : Any> middleware(
+    initialState: STATE,
+    init: OrbitsBuilder<STATE, SIDE_EFFECT>.() -> Unit
+): Middleware<STATE, SIDE_EFFECT> {
+
+    return OrbitsBuilder<STATE, SIDE_EFFECT>(initialState).apply {
+        init(this)
+    }.build()
+}
+
 @OrbitDsl
-open class OrbitsBuilderFlow<STATE : Any, SIDE_EFFECT : Any>(private val initialState: STATE) {
+open class OrbitsBuilder<STATE : Any, SIDE_EFFECT : Any>(private val initialState: STATE) {
     // Since this caches unconsumed events we restrict it to one subscriber at a time
     protected val sideEffectSubject= ConflatedBroadcastChannel<SIDE_EFFECT>()
 
-    private val orbits = mutableListOf<TransformerFunctionFlow<STATE>>()
+    private val orbits = mutableListOf<TransformerFunction<STATE>>()
 
     @Suppress("unused") // Used for the nice extension function highlight
     fun OrbitsBuilder<STATE, SIDE_EFFECT>.perform(description: String) = ActionFilter(description)
 
     inline fun <reified ACTION : Any> ActionFilter.on() =
-        this@OrbitsBuilderFlow.FirstTransformer<ACTION> { it.ofActionType() }
+        this@OrbitsBuilder.FirstTransformer<ACTION> { it.ofActionType() }
 
     @Suppress("unused") // Used for the nice extension function highlight
-    fun ActionFilter.on(vararg classes: Class<*>) = this@OrbitsBuilderFlow.FirstTransformer { actions ->
+    fun ActionFilter.on(vararg classes: Class<*>) = this@OrbitsBuilder.FirstTransformer { actions ->
         flowOf(*classes.map {
                 elementClass -> actions.filter { elementClass.isInstance(it.action) }
         }.toTypedArray()).flattenMerge()
@@ -61,7 +64,7 @@ open class OrbitsBuilderFlow<STATE : Any, SIDE_EFFECT : Any>(private val initial
 
         suspend fun <T : Any> transform(transformer: Flow<ActionState<STATE, ACTION>>.() -> Flow<T>) =
             withContext(Dispatchers.IO) {
-                this@OrbitsBuilderFlow.Transformer { rawActions ->
+                this@OrbitsBuilder.Transformer { rawActions ->
                     transformer(upstreamTransformer(rawActions))
                 }
             }
@@ -69,7 +72,7 @@ open class OrbitsBuilderFlow<STATE : Any, SIDE_EFFECT : Any>(private val initial
 
         suspend fun postSideEffect(sideEffect: ActionState<STATE, ACTION>.() -> SIDE_EFFECT) =
             sideEffectInternal {
-                this@OrbitsBuilderFlow.sideEffectSubject.send(
+                this@OrbitsBuilder.sideEffectSubject.send(
                     it.sideEffect()
                 )
             }
@@ -80,7 +83,7 @@ open class OrbitsBuilderFlow<STATE : Any, SIDE_EFFECT : Any>(private val initial
             }
 
         private suspend fun sideEffectInternal(sideEffect: suspend (ActionState<STATE, ACTION>) -> Unit) =
-            this@OrbitsBuilderFlow.FirstTransformer { rawActions ->
+            this@OrbitsBuilder.FirstTransformer { rawActions ->
                 upstreamTransformer(rawActions)
                     .onEach {
                         sideEffect(it)
@@ -88,7 +91,7 @@ open class OrbitsBuilderFlow<STATE : Any, SIDE_EFFECT : Any>(private val initial
             }
 
         fun withReducer(reducer: ReducerReceiver<STATE, ACTION>.() -> STATE) {
-            this@OrbitsBuilderFlow.orbits += { rawActions, _ ->
+            this@OrbitsBuilder.orbits += { rawActions, _ ->
                 upstreamTransformer(rawActions)
                     .map {
                         { state: STATE ->
@@ -99,7 +102,7 @@ open class OrbitsBuilderFlow<STATE : Any, SIDE_EFFECT : Any>(private val initial
         }
 
         fun ignoringEvents() {
-            this@OrbitsBuilderFlow.orbits += { upstream, _ ->
+            this@OrbitsBuilder.orbits += { upstream, _ ->
                 upstreamTransformer(upstream)
                     .map {
                         { state: STATE -> state }
@@ -112,13 +115,13 @@ open class OrbitsBuilderFlow<STATE : Any, SIDE_EFFECT : Any>(private val initial
     inner class Transformer<EVENT : Any>(private val upstreamTransformer: (Flow<ActionState<STATE, *>>) -> Flow<EVENT>) {
 
         fun <T : Any> transform(transformer: Flow<EVENT>.() -> Flow<T>) =
-            this@OrbitsBuilderFlow.Transformer { rawActions ->
+            this@OrbitsBuilder.Transformer { rawActions ->
                 transformer(upstreamTransformer(rawActions))
             }
 
         fun postSideEffect(sideEffect: EventReceiver<EVENT>.() -> SIDE_EFFECT) =
             sideEffectInternal {
-                this@OrbitsBuilderFlow.sideEffectSubject.send(EventReceiver(it).sideEffect())
+                this@OrbitsBuilder.sideEffectSubject.send(EventReceiver(it).sideEffect())
             }
 
         fun sideEffect(sideEffect: EventReceiver<EVENT>.() -> Unit) =
@@ -127,7 +130,7 @@ open class OrbitsBuilderFlow<STATE : Any, SIDE_EFFECT : Any>(private val initial
             }
 
         private fun sideEffectInternal(sideEffect: suspend (EVENT) -> Unit) =
-            this@OrbitsBuilderFlow.Transformer { rawActions ->
+            this@OrbitsBuilder.Transformer { rawActions ->
                 upstreamTransformer(rawActions)
                     .onEach {
                         sideEffect(it)
@@ -135,9 +138,9 @@ open class OrbitsBuilderFlow<STATE : Any, SIDE_EFFECT : Any>(private val initial
             }
 
         fun <T : Any> loopBack(mapper: EventReceiver<EVENT>.() -> T) {
-            this@OrbitsBuilderFlow.orbits += { upstream, inputRelay ->
+            this@OrbitsBuilder.orbits += { upstream, inputRelay ->
                 upstreamTransformer(upstream)
-                    .onEach { action -> inputRelay.onNext(EventReceiver(action).mapper()) }
+                    .onEach { action -> inputRelay.onEach { EventReceiver(action).mapper() } }
                     .map {
                         { state: STATE -> state }
                     }
@@ -145,7 +148,7 @@ open class OrbitsBuilderFlow<STATE : Any, SIDE_EFFECT : Any>(private val initial
         }
 
         fun ignoringEvents() {
-            this@OrbitsBuilderFlow.orbits += { upstream, _ ->
+            this@OrbitsBuilder.orbits += { upstream, _ ->
                 upstreamTransformer(upstream)
                     .map {
                         { state: STATE -> state }
@@ -154,7 +157,7 @@ open class OrbitsBuilderFlow<STATE : Any, SIDE_EFFECT : Any>(private val initial
         }
 
         fun withReducer(reducer: ReducerReceiver<STATE, EVENT>.() -> STATE) {
-            this@OrbitsBuilderFlow.orbits += { rawActions, _ ->
+            this@OrbitsBuilder.orbits += { rawActions, _ ->
                 upstreamTransformer(rawActions)
                     .map {
                         { state: STATE ->
@@ -165,9 +168,18 @@ open class OrbitsBuilderFlow<STATE : Any, SIDE_EFFECT : Any>(private val initial
         }
     }
 
-    fun build() = object : MiddlewareFlow<STATE, SIDE_EFFECT> {
-        override val initialState: STATE = this@OrbitsBuilderFlow.initialState
-        override val orbits: List<TransformerFunctionFlow<STATE>> = this@OrbitsBuilderFlow.orbits
+    fun build() = object : Middleware<STATE, SIDE_EFFECT> {
+        override val initialState: STATE = this@OrbitsBuilder.initialState
+        override val orbits: List<TransformerFunction<STATE>> = this@OrbitsBuilder.orbits
         override val sideEffect: Flow<SIDE_EFFECT> = sideEffectSubject.asFlow()
     }
 }
+
+class ReducerReceiver<STATE : Any, EVENT : Any>(
+    val currentState: STATE,
+    val event: EVENT
+)
+
+class EventReceiver<EVENT : Any>(
+    val event: EVENT
+)

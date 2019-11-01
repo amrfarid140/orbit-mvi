@@ -16,45 +16,19 @@
 
 package com.babylon.orbit
 
-import io.reactivex.Observable
-import io.reactivex.Scheduler
-import io.reactivex.schedulers.Schedulers
-import io.reactivex.subjects.PublishSubject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flattenMerge
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.scan
-import java.util.concurrent.Executors
 
 data class ActionState<out STATE : Any, out ACTION : Any>(
     val inputState: STATE,
     val action: ACTION
 )
 
-fun <STATE : Any, EVENT : Any> Observable<ActionState<STATE, *>>.buildOrbit(
-    middleware: Middleware<STATE, EVENT>,
-    inputRelay: PublishSubject<Any>
-): Observable<STATE> {
-    val scheduler = createSingleScheduler()
-    return this
-        .observeOn(scheduler)
-        .publish { actions ->
-            Observable.merge(
-                middleware.orbits.map { transformer -> transformer(actions, inputRelay) }
-            )
-        }
-        .scan(middleware.initialState) { currentState, partialReducer -> partialReducer(currentState) }
-        .distinctUntilChanged()
-}
-
-private fun createSingleScheduler(): Scheduler {
-    return Schedulers.from(Executors.newSingleThreadExecutor())
-}
-
 fun <STATE : Any, EVENT : Any> Flow<ActionState<STATE, *>>.buildOrbitFlow(
-    middleware: MiddlewareFlow<STATE, EVENT>,
+    middleware: Middleware<STATE, EVENT>,
     inputRelay: Flow<Any>
 ): Flow<STATE> {
     return flowOf(*middleware.orbits.map { transformer -> transformer(this, inputRelay) }.toTypedArray())
