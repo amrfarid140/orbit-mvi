@@ -23,6 +23,6 @@ class TodoServiceImpl : TodoService {
                 Todo(5, 5, "fifth todo"),
                 Todo(6, 6, "sixth todo")
             )
-        ).onStart { delay(TimeUnit.SECONDS.toMillis(2)) }
+        )
     }
 }

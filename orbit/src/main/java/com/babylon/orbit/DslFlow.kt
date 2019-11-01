@@ -1,6 +1,7 @@
 package com.babylon.orbit
 
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.ConflatedBroadcastChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
@@ -9,7 +10,6 @@ import kotlinx.coroutines.flow.flattenMerge
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.withContext
 
 /*
 What do we want to log:
@@ -31,6 +31,8 @@ fun <STATE : Any, SIDE_EFFECT : Any> middleware(
     }.build()
 }
 
+@ExperimentalCoroutinesApi
+@FlowPreview
 @OrbitDsl
 open class OrbitsBuilder<STATE : Any, SIDE_EFFECT : Any>(private val initialState: STATE) {
     // Since this caches unconsumed events we restrict it to one subscriber at a time
@@ -63,12 +65,9 @@ open class OrbitsBuilder<STATE : Any, SIDE_EFFECT : Any>(private val initialStat
     ) {
 
         fun <T : Any> transform(transformer: Flow<ActionState<STATE, ACTION>>.() -> Flow<T>) =
-
                 this@OrbitsBuilder.Transformer { rawActions ->
                     transformer(upstreamTransformer(rawActions))
                 }
-
-
 
         fun postSideEffect(sideEffect: ActionState<STATE, ACTION>.() -> SIDE_EFFECT) =
             sideEffectInternal {
@@ -140,7 +139,7 @@ open class OrbitsBuilder<STATE : Any, SIDE_EFFECT : Any>(private val initialStat
         fun <T : Any> loopBack(mapper: EventReceiver<EVENT>.() -> T) {
             this@OrbitsBuilder.orbits += { upstream, inputRelay ->
                 upstreamTransformer(upstream)
-                    .onEach { action -> inputRelay.onEach { EventReceiver(action).mapper() } }
+                    .onEach { action -> inputRelay.send(EventReceiver(action).mapper()) }
                     .map {
                         { state: STATE -> state }
                     }

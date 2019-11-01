@@ -16,9 +16,10 @@
 
 package com.babylon.orbit
 
+import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.flow.Flow
 
-typealias TransformerFunction<STATE> = (Flow<ActionState<STATE, Any>>, Flow<Any>) -> (Flow<(STATE) -> STATE>)
+typealias TransformerFunction<STATE> = (Flow<ActionState<STATE, Any>>, SendChannel<Any>) -> (Flow<(STATE) -> STATE>)
 
 interface Middleware<STATE : Any, SIDE_EFFECT : Any> {
     val initialState: STATE

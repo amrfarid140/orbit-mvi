@@ -16,31 +16,37 @@
 
 package com.babylon.orbit
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.ConflatedBroadcastChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.singleOrNull
 
+@FlowPreview
+@ExperimentalCoroutinesApi
 class BaseOrbitContainer<STATE : Any, SIDE_EFFECT : Any>(
     middleware: Middleware<STATE, SIDE_EFFECT>
 ) : OrbitContainer<STATE, SIDE_EFFECT> {
 
-    var state: Flow<STATE>
-        private set
+    private val state = ConflatedBroadcastChannel(middleware.initialState)
 
-    private val inputRelay = ConflatedBroadcastChannel<Any>()
-    override val orbit: Flow<STATE>
+    private val inputRelay = ConflatedBroadcastChannel<Any>(LifecycleAction.Created)
+    override val orbit : Flow<STATE>
     override val sideEffect: Flow<SIDE_EFFECT> = middleware.sideEffect
 
     init {
-        state = ConflatedBroadcastChannel(middleware.initialState).asFlow()
-
         val inputFlow = inputRelay.asFlow()
-        orbit = inputFlow.onStart { emit(LifecycleAction.Created) }
-            .map { ActionState(state.singleOrNull()!!, it) }
-            .buildOrbitFlow(middleware, inputFlow)
+        val stateFlow = state.asFlow()
+        orbit = inputFlow.flatMapLatest {
+            input ->
+            stateFlow.map {
+                ActionState(it, input)
+            }
+        }.buildOrbitFlow(middleware, inputRelay)
     }
 
     override suspend fun sendAction(action: Any) {

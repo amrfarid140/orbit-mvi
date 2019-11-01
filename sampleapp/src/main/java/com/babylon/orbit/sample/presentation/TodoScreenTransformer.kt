@@ -6,11 +6,15 @@ import com.babylon.orbit.sample.domain.user.GetUserProfileSwitchesUseCase
 import com.babylon.orbit.sample.domain.user.GetUserProfileUseCase
 import com.babylon.orbit.sample.domain.user.UserProfileSwitchesStatus
 import io.reactivex.Observable
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 
+@FlowPreview
+@ExperimentalCoroutinesApi
 class TodoScreenTransformer(
     private val todoUseCase: GetTodoUseCase,
     private val getUserProfileSwitchesUseCase: GetUserProfileSwitchesUseCase,

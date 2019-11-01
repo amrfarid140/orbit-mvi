@@ -2,6 +2,8 @@ package com.babylon.orbit.sample.domain.todo
 
 import com.babylon.orbit.sample.network.TodoService
 import io.reactivex.Observable
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -10,6 +12,8 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
+@FlowPreview
+@ExperimentalCoroutinesApi
 class GetTodoUseCase(
     private val todoService: TodoService
 ) {
