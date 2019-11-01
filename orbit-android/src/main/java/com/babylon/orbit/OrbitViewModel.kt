@@ -16,13 +16,14 @@
 
 package com.babylon.orbit
 
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
-import com.uber.autodispose.android.lifecycle.autoDispose
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collect
 
 abstract class OrbitViewModel<STATE : Any, SIDE_EFFECT : Any>(
     middleware: Middleware<STATE, SIDE_EFFECT>
-) : ViewModel() {
+) : ViewModel(), CoroutineScope {
 
     constructor(
         initialState: STATE,
@@ -31,35 +32,26 @@ abstract class OrbitViewModel<STATE : Any, SIDE_EFFECT : Any>(
 
     private val container: AndroidOrbitContainer<STATE, SIDE_EFFECT> = AndroidOrbitContainer(middleware)
 
-    val state: STATE
-        get() = container.state
-
     /**
      * Designed to be called in onStart or onResume, depending on your use case.
      * DO NOT call in other lifecycle methods unless you know what you're doing!
      * The subscriptions will be disposed in methods symmetric to the ones they were called in.
      * For example onStart -> onStop, onResume -> onPause, onCreate -> onDestroy.
      */
-    fun connect(
-        lifecycleOwner: LifecycleOwner,
+    suspend fun connect(
         stateConsumer: (STATE) -> Unit,
         sideEffectConsumer: (SIDE_EFFECT) -> Unit = {}
     ) {
-
-        container.orbit
-            .autoDispose(lifecycleOwner)
-            .subscribe(stateConsumer)
-
-        container.sideEffect
-            .autoDispose(lifecycleOwner)
-            .subscribe(sideEffectConsumer)
+        container.orbit.collect { stateConsumer(it) }
+        container.sideEffect.collect { sideEffectConsumer(it) }
     }
 
-    fun sendAction(action: Any) {
+    suspend fun sendAction(action: Any) {
         container.sendAction(action)
     }
 
     override fun onCleared() {
         container.disposeOrbit()
+        container.cancel()
     }
 }

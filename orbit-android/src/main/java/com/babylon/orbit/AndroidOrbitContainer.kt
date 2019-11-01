@@ -18,18 +18,21 @@ package com.babylon.orbit
 
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.single
+import kotlin.coroutines.CoroutineContext
 
 class AndroidOrbitContainer<STATE : Any, SIDE_EFFECT : Any> private constructor(
     private val delegate: BaseOrbitContainer<STATE, SIDE_EFFECT>
-) : OrbitContainer<STATE, SIDE_EFFECT> by delegate {
+) : OrbitContainer<STATE, SIDE_EFFECT> by delegate, CoroutineScope {
+
+    private val job = Job()
 
     constructor(middleware: Middleware<STATE, SIDE_EFFECT>) : this(BaseOrbitContainer(middleware))
 
-    val state: STATE
-        get() = delegate.state.blockingGet()
-
-    override val orbit: Observable<STATE> = delegate.orbit.observeOn(AndroidSchedulers.mainThread())
-
-    override val sideEffect: Observable<SIDE_EFFECT> =
-        delegate.sideEffect.observeOn(AndroidSchedulers.mainThread())
+    override val coroutineContext: CoroutineContext
+        get() = Dispatchers.Main + job
 }

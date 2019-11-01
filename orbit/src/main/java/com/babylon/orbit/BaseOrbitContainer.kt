@@ -35,8 +35,6 @@ class BaseOrbitContainer<STATE : Any, SIDE_EFFECT : Any>(
     override val orbit: Flow<STATE>
     override val sideEffect: Flow<SIDE_EFFECT> = middleware.sideEffect
 
-    private val disposables = CompositeDisposable()
-
     init {
         state = ConflatedBroadcastChannel(middleware.initialState).asFlow()
 
@@ -51,6 +49,6 @@ class BaseOrbitContainer<STATE : Any, SIDE_EFFECT : Any>(
     }
 
     override fun disposeOrbit() {
-        disposables.clear()
+        inputRelay.close()
     }
 }
