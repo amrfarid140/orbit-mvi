@@ -16,13 +16,9 @@
 
 package com.babylon.orbit
 
-import io.reactivex.Observable
-import io.reactivex.android.schedulers.AndroidSchedulers
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.single
 import kotlin.coroutines.CoroutineContext
 
 class AndroidOrbitContainer<STATE : Any, SIDE_EFFECT : Any> private constructor(
@@ -34,5 +30,5 @@ class AndroidOrbitContainer<STATE : Any, SIDE_EFFECT : Any> private constructor(
     constructor(middleware: Middleware<STATE, SIDE_EFFECT>) : this(BaseOrbitContainer(middleware))
 
     override val coroutineContext: CoroutineContext
-        get() = Dispatchers.Main + job
+        get() = Dispatchers.IO + job
 }

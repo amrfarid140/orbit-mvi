@@ -3,20 +3,23 @@ package com.babylon.orbit.sample.network
 import com.babylon.orbit.sample.domain.user.UserProfile
 import com.babylon.orbit.sample.domain.user.UserProfileSwitches
 import io.reactivex.Single
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import java.lang.RuntimeException
 
 class UserServiceImpl : UserService {
 
-    override fun getUserProfileSwitches(): Single<UserProfileSwitches> {
-        return Single.create { it.onSuccess(UserProfileSwitches(true)) }
+    override fun getUserProfileSwitches(): Flow<UserProfileSwitches> {
+        return flowOf(UserProfileSwitches(true))
     }
 
-    override fun getUserProfile(userId: Int): Single<UserProfile> {
-        return Single.create {
+    override fun getUserProfile(userId: Int): Flow<UserProfile> {
+        return flow {
             if (userId == 1) {
-                it.onSuccess(UserProfile(1, "Babylon User", "user@babylon.com"))
+                emit(UserProfile(1, "Babylon User", "user@babylon.com"))
             } else {
-                it.onError(RuntimeException("user with id $userId not found"))
+                throw RuntimeException("user with id $userId not found")
             }
         }
     }

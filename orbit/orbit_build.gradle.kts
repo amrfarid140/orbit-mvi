@@ -25,10 +25,6 @@ apply(from = "$rootDir/gradle/scripts/bintray.gradle.kts")
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
-    implementation(ProjectDependencies.rxJava2)
-    implementation(ProjectDependencies.rxJava2Extensions)
-    implementation(ProjectDependencies.rxRelay)
-    implementation(ProjectDependencies.rxKotlin)
     implementation(ProjectDependencies.javaxInject)
     implementation(ProjectDependencies.coroutinesCore)
 

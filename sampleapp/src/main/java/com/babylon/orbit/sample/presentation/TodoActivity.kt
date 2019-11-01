@@ -49,7 +49,7 @@ class TodoActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        viewModel.connect(this, ::render)
+        viewModel.connect(::render)
     }
 
     private fun render(state: TodoScreenState) {

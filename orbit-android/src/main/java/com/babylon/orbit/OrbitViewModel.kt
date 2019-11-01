@@ -20,6 +20,7 @@ import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
 abstract class OrbitViewModel<STATE : Any, SIDE_EFFECT : Any>(
     middleware: Middleware<STATE, SIDE_EFFECT>
@@ -38,15 +39,15 @@ abstract class OrbitViewModel<STATE : Any, SIDE_EFFECT : Any>(
      * The subscriptions will be disposed in methods symmetric to the ones they were called in.
      * For example onStart -> onStop, onResume -> onPause, onCreate -> onDestroy.
      */
-    suspend fun connect(
+    fun connect(
         stateConsumer: (STATE) -> Unit,
         sideEffectConsumer: (SIDE_EFFECT) -> Unit = {}
-    ) {
+    ) = launch {
         container.orbit.collect { stateConsumer(it) }
         container.sideEffect.collect { sideEffectConsumer(it) }
     }
 
-    suspend fun sendAction(action: Any) {
+    fun sendAction(action: Any) = launch {
         container.sendAction(action)
     }
 

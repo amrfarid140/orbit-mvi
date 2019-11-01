@@ -62,27 +62,27 @@ open class OrbitsBuilder<STATE : Any, SIDE_EFFECT : Any>(private val initialStat
         private val upstreamTransformer: (Flow<ActionState<STATE, *>>) -> Flow<ActionState<STATE, ACTION>>
     ) {
 
-        suspend fun <T : Any> transform(transformer: Flow<ActionState<STATE, ACTION>>.() -> Flow<T>) =
-            withContext(Dispatchers.IO) {
+        fun <T : Any> transform(transformer: Flow<ActionState<STATE, ACTION>>.() -> Flow<T>) =
+
                 this@OrbitsBuilder.Transformer { rawActions ->
                     transformer(upstreamTransformer(rawActions))
                 }
-            }
 
 
-        suspend fun postSideEffect(sideEffect: ActionState<STATE, ACTION>.() -> SIDE_EFFECT) =
+
+        fun postSideEffect(sideEffect: ActionState<STATE, ACTION>.() -> SIDE_EFFECT) =
             sideEffectInternal {
                 this@OrbitsBuilder.sideEffectSubject.send(
                     it.sideEffect()
                 )
             }
 
-        suspend fun sideEffect(sideEffect: ActionState<STATE, ACTION>.() -> Unit) =
+        fun sideEffect(sideEffect: ActionState<STATE, ACTION>.() -> Unit) =
             sideEffectInternal {
                 it.sideEffect()
             }
 
-        private suspend fun sideEffectInternal(sideEffect: suspend (ActionState<STATE, ACTION>) -> Unit) =
+        private fun sideEffectInternal(sideEffect: suspend (ActionState<STATE, ACTION>) -> Unit) =
             this@OrbitsBuilder.FirstTransformer { rawActions ->
                 upstreamTransformer(rawActions)
                     .onEach {
