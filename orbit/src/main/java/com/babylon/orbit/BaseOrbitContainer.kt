@@ -23,8 +23,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.singleOrNull
 
 @FlowPreview
 @ExperimentalCoroutinesApi
@@ -55,5 +53,6 @@ class BaseOrbitContainer<STATE : Any, SIDE_EFFECT : Any>(
 
     override fun disposeOrbit() {
         inputRelay.close()
+        state.close()
     }
 }

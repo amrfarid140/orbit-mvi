@@ -16,23 +16,13 @@
 
 package com.babylon.orbit
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.Job
-import kotlin.coroutines.CoroutineContext
 
 @FlowPreview
 @ExperimentalCoroutinesApi
 class AndroidOrbitContainer<STATE : Any, SIDE_EFFECT : Any> private constructor(
     private val delegate: BaseOrbitContainer<STATE, SIDE_EFFECT>
-) : OrbitContainer<STATE, SIDE_EFFECT> by delegate, CoroutineScope {
-
-    private val job = Job()
-
+) : OrbitContainer<STATE, SIDE_EFFECT> by delegate {
     constructor(middleware: Middleware<STATE, SIDE_EFFECT>) : this(BaseOrbitContainer(middleware))
-
-    override val coroutineContext: CoroutineContext
-        get() = Dispatchers.IO + job
 }

@@ -18,11 +18,13 @@ package com.babylon.orbit
 
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
 
 @FlowPreview
@@ -31,12 +33,12 @@ abstract class OrbitViewModel<STATE : Any, SIDE_EFFECT : Any>(
     middleware: Middleware<STATE, SIDE_EFFECT>
 ) : ViewModel(), CoroutineScope {
 
-
     constructor(
         initialState: STATE,
         init: OrbitsBuilder<STATE, SIDE_EFFECT>.() -> Unit
     ) : this(middleware(initialState, init))
 
+    override val coroutineContext: CoroutineContext = Dispatchers.IO
     private val container: AndroidOrbitContainer<STATE, SIDE_EFFECT> = AndroidOrbitContainer(middleware)
 
     /**
@@ -49,8 +51,12 @@ abstract class OrbitViewModel<STATE : Any, SIDE_EFFECT : Any>(
         stateConsumer: (STATE) -> Unit,
         sideEffectConsumer: (SIDE_EFFECT) -> Unit = {}
     ) = launch {
-        container.orbit.collect { stateConsumer(it) }
-        container.sideEffect.collect { sideEffectConsumer(it) }
+        container.orbit.collect {
+            withContext(Dispatchers.Main) { stateConsumer(it) }
+        }
+        container.sideEffect.collect {
+            withContext(Dispatchers.Main) { sideEffectConsumer(it) }
+        }
     }
 
     fun sendAction(action: Any) = launch {
@@ -58,7 +64,7 @@ abstract class OrbitViewModel<STATE : Any, SIDE_EFFECT : Any>(
     }
 
     override fun onCleared() {
+        cancel()
         container.disposeOrbit()
-        container.cancel()
     }
 }

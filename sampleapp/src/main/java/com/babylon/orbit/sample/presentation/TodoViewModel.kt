@@ -2,18 +2,15 @@ package com.babylon.orbit.sample.presentation
 
 import com.babylon.orbit.LifecycleAction
 import com.babylon.orbit.OrbitViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import kotlin.coroutines.CoroutineContext
 
 @FlowPreview
 @ExperimentalCoroutinesApi
 class TodoViewModel(
     private val transformers: TodoScreenTransformer,
     private val reducers: TodoScreenReducer,
-    private val sideEffects: TodoScreenSideEffect,
-    override val coroutineContext: CoroutineContext = Dispatchers.Main
+    private val sideEffects: TodoScreenSideEffect
 ) : OrbitViewModel<TodoScreenState, Unit>(TodoScreenState(), {
 
     perform("load the todos")
