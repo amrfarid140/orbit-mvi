@@ -18,6 +18,7 @@ package com.babylon.orbit
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.channels.BroadcastChannel
 import kotlinx.coroutines.channels.ConflatedBroadcastChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
@@ -30,29 +31,23 @@ class BaseOrbitContainer<STATE : Any, SIDE_EFFECT : Any>(
     middleware: Middleware<STATE, SIDE_EFFECT>
 ) : OrbitContainer<STATE, SIDE_EFFECT> {
 
-    private val state = ConflatedBroadcastChannel(middleware.initialState)
-
-    private val inputRelay = ConflatedBroadcastChannel<Any>(LifecycleAction.Created)
-    override val orbit : Flow<STATE>
+    private val state = ConflatedBroadcastChannel(middleware.initialState).asFlow()
+    private val input = BroadcastChannel<Any>(-2) // Creates a Buffered Broadcast channel with default buffer size
     override val sideEffect: Flow<SIDE_EFFECT> = middleware.sideEffect
+    override val orbit: Flow<STATE>
 
     init {
-        val inputFlow = inputRelay.asFlow()
-        val stateFlow = state.asFlow()
-        orbit = inputFlow.flatMapLatest {
-            input ->
-            stateFlow.map {
-                ActionState(it, input)
+        orbit = input.asFlow().flatMapLatest { input -> state.map { state -> ActionState(state, input) } }
+            .buildOrbitFlow(middleware) {
+                input.send(it)
             }
-        }.buildOrbitFlow(middleware, inputRelay)
     }
 
     override suspend fun sendAction(action: Any) {
-        inputRelay.send(action)
+        input.send(action)
     }
 
     override fun disposeOrbit() {
-        inputRelay.close()
-        state.close()
+        input.cancel()
     }
 }

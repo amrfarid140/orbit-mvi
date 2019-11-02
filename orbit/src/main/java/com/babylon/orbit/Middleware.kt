@@ -14,13 +14,19 @@
  *  limitations under the License.
  */
 
+@file:Suppress("EXPERIMENTAL_API_USAGE")
+
 package com.babylon.orbit
 
-import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 
-typealias TransformerFunction<STATE> = (Flow<ActionState<STATE, Any>>, SendChannel<Any>) -> (Flow<(STATE) -> STATE>)
+@FlowPreview
+typealias TransformerFunction<STATE> = (Flow<ActionState<STATE, Any>>, suspend (Any) -> Unit) -> (Flow<(STATE) -> STATE>)
 
+@FlowPreview
+@ExperimentalCoroutinesApi
 interface Middleware<STATE : Any, SIDE_EFFECT : Any> {
     val initialState: STATE
     val orbits: List<TransformerFunction<STATE>>

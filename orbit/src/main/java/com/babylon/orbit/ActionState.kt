@@ -18,7 +18,6 @@ package com.babylon.orbit
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flattenMerge
@@ -36,7 +35,7 @@ data class ActionState<out STATE : Any, out ACTION : Any>(
 @ExperimentalCoroutinesApi
 fun <STATE : Any, EVENT : Any> Flow<ActionState<STATE, *>>.buildOrbitFlow(
     middleware: Middleware<STATE, EVENT>,
-    inputRelay: SendChannel<Any>
+    inputRelay: suspend (Any) -> Unit
 ): Flow<STATE> {
     return flowOf(*middleware.orbits.map { transformer -> transformer(this, inputRelay) }.toTypedArray())
         .flattenMerge()

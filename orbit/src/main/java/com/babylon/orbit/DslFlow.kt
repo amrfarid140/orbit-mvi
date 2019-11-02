@@ -21,6 +21,8 @@ What do we want to log:
 @DslMarker
 annotation class OrbitDsl
 
+@ExperimentalCoroutinesApi
+@FlowPreview
 fun <STATE : Any, SIDE_EFFECT : Any> middleware(
     initialState: STATE,
     init: OrbitsBuilder<STATE, SIDE_EFFECT>.() -> Unit
@@ -53,6 +55,7 @@ open class OrbitsBuilder<STATE : Any, SIDE_EFFECT : Any>(private val initialStat
         }.toTypedArray()).flattenMerge()
     }
 
+    @Suppress("unused")
     @OrbitDsl
     inner class ActionFilter(private val description: String) {
         inline fun <reified ACTION : Any> Flow<ActionState<STATE, *>>.ofActionType(): Flow<ActionState<STATE, ACTION>> =
@@ -139,7 +142,7 @@ open class OrbitsBuilder<STATE : Any, SIDE_EFFECT : Any>(private val initialStat
         fun <T : Any> loopBack(mapper: EventReceiver<EVENT>.() -> T) {
             this@OrbitsBuilder.orbits += { upstream, inputRelay ->
                 upstreamTransformer(upstream)
-                    .onEach { action -> inputRelay.send(EventReceiver(action).mapper()) }
+                    .onEach { action -> inputRelay(EventReceiver(action).mapper()) }
                     .map {
                         { state: STATE -> state }
                     }
