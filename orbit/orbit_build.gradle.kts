@@ -29,6 +29,7 @@ dependencies {
     implementation(ProjectDependencies.coroutinesCore)
 
     // Testing
+    testImplementation(ProjectDependencies.coroutinesTest)
     GroupedDependencies.spekTestsImplementation.forEach { testImplementation(it) }
     GroupedDependencies.spekTestsRuntime.forEach { testRuntimeOnly(it) }
 }
