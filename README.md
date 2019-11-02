@@ -1,3 +1,8 @@
+# What's in this Fork
+
+This fork replaces the use of RxJava with the use of the Flow API from Kotlin coroutines.
+As it stands, this forks is experimental so use it as your own risk.
+
 # Orbit MVI for Kotlin and Android
 
 [![CI status](https://github.com/babylonhealth/orbit-mvi/workflows/Android%20CI/badge.svg)](https://github.com/babylonhealth/orbit-mvi/actions)
