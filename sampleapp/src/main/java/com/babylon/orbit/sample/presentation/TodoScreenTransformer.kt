@@ -5,7 +5,6 @@ import com.babylon.orbit.sample.domain.todo.GetTodoUseCase
 import com.babylon.orbit.sample.domain.user.GetUserProfileSwitchesUseCase
 import com.babylon.orbit.sample.domain.user.GetUserProfileUseCase
 import com.babylon.orbit.sample.domain.user.UserProfileSwitchesStatus
-import io.reactivex.Observable
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow

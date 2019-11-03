@@ -1,19 +1,14 @@
 package com.babylon.orbit.sample.network
 
 import com.babylon.orbit.sample.domain.todo.Todo
-import io.reactivex.Single
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.asFlow
-import kotlinx.coroutines.flow.delayFlow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.onStart
-import java.util.concurrent.TimeUnit
 
 class TodoServiceImpl : TodoService {
 
     @SuppressWarnings("MagicNumber")
     override fun getTodo(): Flow<List<Todo>> {
+
         return flowOf(
             listOf(
                 Todo(1, 1, "first todo"),
