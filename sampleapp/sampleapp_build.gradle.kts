@@ -73,6 +73,7 @@ dependencies {
     implementation(ProjectDependencies.groupieKotlinAndroidExtensions)
 
     // Testing
+    testImplementation(ProjectDependencies.coroutinesTest)
     GroupedDependencies.spekTestsImplementation.forEach { testImplementation(it) }
     GroupedDependencies.spekTestsRuntime.forEach { testRuntimeOnly(it) }
 }
