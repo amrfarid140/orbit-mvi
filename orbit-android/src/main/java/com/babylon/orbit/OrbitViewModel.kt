@@ -39,7 +39,7 @@ abstract class OrbitViewModel<STATE : Any, SIDE_EFFECT : Any>(
     ) : this(middleware(initialState, init))
 
     override val coroutineContext: CoroutineContext = Dispatchers.IO
-    private val container: AndroidOrbitContainer<STATE, SIDE_EFFECT> = AndroidOrbitContainer(middleware)
+    private val container: OrbitContainer<STATE, SIDE_EFFECT> = BaseOrbitContainer(middleware)
 
     /**
      * Designed to be called in onStart or onResume, depending on your use case.
