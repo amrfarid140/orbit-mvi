@@ -21,6 +21,7 @@ object Versions {
     const val markdownLintPlugin = "0.5.0"
 
     const val kotlin = "1.3.50"
+    const val coroutines = "1.3.2"
 
     const val androidLifecycles = "2.1.0"
     const val androidAppCompat = "1.1.0"
@@ -30,13 +31,6 @@ object Versions {
     const val androidRxBindings = "3.0.0"
 
     const val javaxInject = "1"
-
-    const val rxJava2 = "2.2.12"
-    const val rxJava2Extensions = "0.20.10"
-    const val rxRelay = "2.1.1"
-    const val rxKotlin = "2.4.0"
-    const val rxAndroid = "2.1.1"
-    const val autodispose = "1.4.0"
 
     const val timber = "4.7.1"
 
@@ -51,6 +45,8 @@ object Versions {
 
 object ProjectDependencies {
     const val kotlinReflect = "org.jetbrains.kotlin:kotlin-reflect:${Versions.kotlin}"
+    const val coroutinesCore = "org.jetbrains.kotlinx:kotlinx-coroutines-core:${Versions.coroutines}"
+    const val coroutinesAndroid = "org.jetbrains.kotlinx:kotlinx-coroutines-android:${Versions.coroutines}"
 
     // Android libraries
     const val androidLifecycleComponents = "androidx.lifecycle:lifecycle-extensions:${Versions.androidLifecycles}"
@@ -65,15 +61,6 @@ object ProjectDependencies {
     // See https://google.github.io/dagger/ for more details.
     const val javaxInject = "javax.inject:javax.inject:${Versions.javaxInject}"
 
-    // Reactive extension related stuff
-    const val rxJava2 = "io.reactivex.rxjava2:rxjava:${Versions.rxJava2}"
-    const val rxJava2Extensions = "com.github.akarnokd:rxjava2-extensions:${Versions.rxJava2Extensions}"
-    const val rxRelay = "com.jakewharton.rxrelay2:rxrelay:${Versions.rxRelay}"
-    const val rxKotlin = "io.reactivex.rxjava2:rxkotlin:${Versions.rxKotlin}"
-    const val rxAndroid = "io.reactivex.rxjava2:rxandroid:${Versions.rxAndroid}"
-    const val autodispose = "com.uber.autodispose:autodispose:${Versions.autodispose}"
-    const val autodisposeArchComponents = "com.uber.autodispose:autodispose-android-archcomponents:${Versions.autodispose}"
-
     const val groupie = "com.xwray:groupie:${Versions.groupie}"
     const val groupieKotlinAndroidExtensions = "com.xwray:groupie-kotlin-android-extensions:${Versions.groupie}"
 
@@ -86,6 +73,7 @@ object ProjectDependencies {
     const val junitPlatformConsole = "org.junit.platform:junit-platform-console:${Versions.junitPlatform}"
     const val assertJ = "org.assertj:assertj-core:${Versions.assertJ}"
     const val mockitoKotlin = "com.nhaarman.mockitokotlin2:mockito-kotlin:${Versions.mockitoKotlin}"
+    const val coroutinesTest = "org.jetbrains.kotlinx:kotlinx-coroutines-test:${Versions.coroutines}"
 }
 
 object PluginDependencies {

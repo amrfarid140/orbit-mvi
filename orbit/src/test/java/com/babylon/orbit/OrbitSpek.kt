@@ -16,19 +16,44 @@
 
 package com.babylon.orbit
 
-import io.reactivex.observers.TestObserver
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestCoroutineDispatcher
+import kotlinx.coroutines.test.TestCoroutineScope
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
 import org.assertj.core.api.Assertions.assertThat
 import org.spekframework.spek2.Spek
 import org.spekframework.spek2.style.gherkin.Feature
-import java.util.concurrent.CountDownLatch
 
+@ExperimentalCoroutinesApi
+@FlowPreview
 internal class OrbitSpek : Spek({
+
+    val testCoroutineDispatcher = TestCoroutineDispatcher()
+    val testScope = TestCoroutineScope()
+
+    beforeEachTest {
+        Dispatchers.setMain(testCoroutineDispatcher)
+    }
+
+    fun <T : Any> Flow<T>.startCollecting(result: MutableList<T>) = testScope.launch {
+        collect { result.add(it) }
+    }
+
+
     Feature("Orbit DSL") {
 
         Scenario("no flows") {
             lateinit var middleware: Middleware<State, String>
             lateinit var orbitContainer: BaseOrbitContainer<State, String>
-            lateinit var testObserver: TestObserver<State>
+            val result = mutableListOf<State>()
 
             Given("A middleware with no flows") {
                 middleware = createTestMiddleware {}
@@ -36,18 +61,18 @@ internal class OrbitSpek : Spek({
             }
 
             When("connecting to the middleware") {
-                testObserver = orbitContainer.orbit.test()
+                runBlocking { orbitContainer.orbit.collect { result.add(it) } }
             }
 
             Then("emits the initial state") {
-                testObserver.assertValueSequence(listOf(middleware.initialState))
+                assertThat(result).isEqualTo(listOf(middleware.initialState))
             }
         }
 
         Scenario("a flow that reduces an action") {
             lateinit var middleware: Middleware<State, String>
             lateinit var orbitContainer: BaseOrbitContainer<State, String>
-            lateinit var testObserver: TestObserver<State>
+            val result = mutableListOf<State>()
 
             Given("A middleware with one reducer flow") {
                 middleware = createTestMiddleware {
@@ -59,20 +84,19 @@ internal class OrbitSpek : Spek({
             }
 
             When("sending an action") {
-                testObserver = orbitContainer.orbit.test()
-                orbitContainer.sendAction(5)
+                orbitContainer.orbit.startCollecting(result)
+                runBlocking { orbitContainer.sendAction(5) }
             }
 
             Then("produces a correct end state") {
-                testObserver.awaitCount(2)
-                testObserver.assertValueSequence(listOf(State(42), State(47)))
+                assertThat(result).isEqualTo(listOf(State(42), State(47)))
             }
         }
 
         Scenario("a flow with a transformer and reducer") {
             lateinit var middleware: Middleware<State, String>
             lateinit var orbitContainer: BaseOrbitContainer<State, String>
-            lateinit var testObserver: TestObserver<State>
+            val result = mutableListOf<State>()
 
             Given("A middleware with a transformer and reducer") {
                 middleware = createTestMiddleware {
@@ -85,20 +109,19 @@ internal class OrbitSpek : Spek({
             }
 
             When("sending an action") {
-                testObserver = orbitContainer.orbit.test()
-                orbitContainer.sendAction(5)
+                orbitContainer.orbit.startCollecting(result)
+                runBlocking { orbitContainer.sendAction(5) }
             }
 
             Then("produces a correct end state") {
-                testObserver.awaitCount(2)
-                testObserver.assertValueSequence(listOf(State(42), State(52)))
+                assertThat(result).isEqualTo(listOf(State(42), State(52)))
             }
         }
 
         Scenario("a flow with two transformers and a reducer") {
             lateinit var middleware: Middleware<State, String>
             lateinit var orbitContainer: BaseOrbitContainer<State, String>
-            lateinit var testObserver: TestObserver<State>
+            val result = mutableListOf<State>()
 
             Given("A middleware with two transformers and a reducer") {
                 middleware = createTestMiddleware {
@@ -112,21 +135,19 @@ internal class OrbitSpek : Spek({
             }
 
             When("sending an action") {
-                testObserver = orbitContainer.orbit.test()
-                orbitContainer.sendAction(5)
+                orbitContainer.orbit.startCollecting(result)
+                runBlocking { orbitContainer.sendAction(5) }
             }
 
             Then("produces a correct end state") {
-                testObserver.awaitCount(2)
-                testObserver.assertValueSequence(listOf(State(42), State(62)))
+                assertThat(result).isEqualTo(listOf(State(42), State(62)))
             }
         }
 
         Scenario("a flow with two transformers that is ignored") {
-            val latch = CountDownLatch(1)
             lateinit var middleware: Middleware<State, String>
             lateinit var orbitContainer: BaseOrbitContainer<State, String>
-            lateinit var testObserver: TestObserver<State>
+            val result = mutableListOf<State>()
 
             Given("A middleware with two transformer flows") {
                 middleware = createTestMiddleware {
@@ -139,7 +160,6 @@ internal class OrbitSpek : Spek({
                     perform("unlatch")
                         .on<Int>()
                         .transform {
-                            latch.countDown()
                             this
                         }
                         .ignoringEvents()
@@ -148,13 +168,12 @@ internal class OrbitSpek : Spek({
             }
 
             When("sending an action") {
-                testObserver = orbitContainer.orbit.test()
-                orbitContainer.sendAction(5)
-                latch.await()
+                orbitContainer.orbit.startCollecting(result)
+                runBlocking { orbitContainer.sendAction(5) }
             }
 
             Then("emits just the initial state after connecting") {
-                testObserver.assertValueSequence(listOf(State(42)))
+                assertThat(result).isEqualTo(listOf(State(42)))
             }
         }
 
@@ -163,14 +182,16 @@ internal class OrbitSpek : Spek({
 
             lateinit var middleware: Middleware<State, String>
             lateinit var orbitContainer: BaseOrbitContainer<State, String>
-            lateinit var testObserver: TestObserver<State>
+            val result = mutableListOf<State>()
 
             Given("A middleware with a transformer loopback flow and transform/reduce flow") {
                 middleware = createTestMiddleware {
                     perform("something")
                         .on<Int>()
                         .transform { map { it.action * 2 } }
-                        .loopBack { IntModified(event) }
+                        .loopBack {
+                            IntModified(event)
+                        }
 
                     perform("something")
                         .on<IntModified>()
@@ -181,20 +202,19 @@ internal class OrbitSpek : Spek({
             }
 
             When("sending an action") {
-                testObserver = orbitContainer.orbit.test()
-                orbitContainer.sendAction(5)
+                orbitContainer.orbit.startCollecting(result)
+                runBlocking { orbitContainer.sendAction(5) }
             }
 
             Then("produces a correct end state") {
-                testObserver.awaitCount(2)
-                testObserver.assertValueSequence(listOf(State(42), State(62)))
+                assertThat(result).isEqualTo(listOf(State(42), State(62)))
             }
         }
 
         Scenario("a flow with two transformers with reducers") {
             lateinit var middleware: Middleware<State, String>
             lateinit var orbitContainer: BaseOrbitContainer<State, String>
-            lateinit var testObserver: TestObserver<State>
+            val result = mutableListOf<State>()
 
             fun myReducer(event: Int): State {
                 return State(event)
@@ -216,15 +236,15 @@ internal class OrbitSpek : Spek({
             }
 
             When("sending an action") {
-                testObserver = orbitContainer.orbit.test()
-                orbitContainer.sendAction(5)
+                orbitContainer.orbit.startCollecting(result)
+                runBlocking { orbitContainer.sendAction(5) }
             }
 
             Then("produces a correct series of states") {
-                testObserver.awaitCount(3)
-                testObserver.assertValueSet(listOf(State(42), State(10), State(7)))
+                assertThat(result).isEqualTo(listOf(State(42), State(10), State(7)))
             }
         }
+
         Scenario("a flow with three transformers with reducers") {
 
             class One
@@ -233,7 +253,7 @@ internal class OrbitSpek : Spek({
 
             lateinit var middleware: Middleware<State, String>
             lateinit var orbitContainer: BaseOrbitContainer<State, String>
-            lateinit var testObserver: TestObserver<State>
+            val result = mutableListOf<State>()
             val expectedOutput = mutableListOf(State(0))
 
             Given("A middleware with three transform/reduce flows") {
@@ -254,33 +274,33 @@ internal class OrbitSpek : Spek({
             }
 
             When("sending actions") {
-                testObserver = orbitContainer.orbit.test()
+                orbitContainer.orbit.startCollecting(result)
                 for (i in 0 until 99) {
                     val value = (i % 3)
                     expectedOutput.add(State(value + 1))
-
-                    orbitContainer.sendAction(
-                        when (value) {
-                            0 -> One()
-                            1 -> Two()
-                            2 -> Three()
-                            else -> throw IllegalStateException("misconfigured test")
-                        }
-                    )
+                    runBlocking {
+                        orbitContainer.sendAction(
+                            when (value) {
+                                0 -> One()
+                                1 -> Two()
+                                2 -> Three()
+                                else -> throw IllegalStateException("misconfigured test")
+                            }
+                        )
+                    }
                 }
             }
 
             Then("produces a correct series of states") {
-                testObserver.awaitCount(100)
-                testObserver.assertValueSequence(expectedOutput)
+                assertThat(result).isEqualTo(expectedOutput)
             }
         }
 
         Scenario("posting side effects as first transformer") {
             lateinit var middleware: Middleware<State, String>
             lateinit var orbitContainer: BaseOrbitContainer<State, String>
-            lateinit var testObserver: TestObserver<State>
-            lateinit var sideEffects: TestObserver<String>
+            val result = mutableListOf<State>()
+            val sideEffects = mutableListOf<String>()
 
             Given("A middleware with a single post side effect as the first transformer") {
                 middleware = createTestMiddleware(State(1)) {
@@ -293,28 +313,27 @@ internal class OrbitSpek : Spek({
             }
 
             When("sending actions") {
-                testObserver = orbitContainer.orbit.test()
-                sideEffects = orbitContainer.sideEffect.test()
+                orbitContainer.orbit.startCollecting(result)
+                orbitContainer.sideEffect.startCollecting(sideEffects)
 
-                orbitContainer.sendAction(5)
+                runBlocking { orbitContainer.sendAction(5) }
 
-                testObserver.awaitCount(2)
             }
 
             Then("produces a correct series of states") {
-                testObserver.assertValueSequence(listOf(State(1), State(2)))
+                assertThat(result).isEqualTo(listOf(State(1), State(2)))
             }
 
             And("posts a correct series of side effects") {
-                sideEffects.assertValueSequence(listOf("6"))
+                assertThat(sideEffects).isEqualTo(listOf("6"))
             }
         }
 
         Scenario("posting side effects as non-first transformer") {
             lateinit var middleware: Middleware<State, String>
             lateinit var orbitContainer: BaseOrbitContainer<State, String>
-            lateinit var testObserver: TestObserver<State>
-            lateinit var sideEffects: TestObserver<String>
+            val result = mutableListOf<State>()
+            val sideEffects = mutableListOf<String>()
 
             Given("A middleware with a single post side effect as the second transformer") {
                 middleware = createTestMiddleware(State(1)) {
@@ -328,28 +347,26 @@ internal class OrbitSpek : Spek({
             }
 
             When("sending actions") {
-                testObserver = orbitContainer.orbit.test()
-                sideEffects = orbitContainer.sideEffect.test()
+                orbitContainer.orbit.startCollecting(result)
+                orbitContainer.sideEffect.startCollecting(sideEffects)
 
-                orbitContainer.sendAction(5)
-
-                testObserver.awaitCount(2)
+                runBlocking { orbitContainer.sendAction(5) }
             }
 
             Then("produces a correct series of states") {
-                testObserver.assertValueSequence(listOf(State(1), State(2)))
+                assertThat(result).isEqualTo(listOf(State(1), State(2)))
             }
 
             And("posts a correct series of side effects") {
-                sideEffects.assertValueSequence(listOf("10"))
+                assertThat(sideEffects).isEqualTo(listOf("10"))
             }
         }
 
         Scenario("non-posting side effects as first transformer") {
             lateinit var middleware: Middleware<State, String>
             lateinit var orbitContainer: BaseOrbitContainer<State, String>
-            lateinit var testObserver: TestObserver<State>
-            lateinit var sideEffects: TestObserver<String>
+            val result = mutableListOf<State>()
+            val sideEffects = mutableListOf<String>()
             val sideEffectList = mutableListOf<String>()
 
             Given("A middleware with a single side effect as the first transformer") {
@@ -363,20 +380,17 @@ internal class OrbitSpek : Spek({
             }
 
             When("sending actions") {
-                testObserver = orbitContainer.orbit.test()
-                sideEffects = orbitContainer.sideEffect.test()
-
-                orbitContainer.sendAction(5)
-
-                testObserver.awaitCount(2)
+                orbitContainer.orbit.startCollecting(result)
+                orbitContainer.sideEffect.startCollecting(sideEffects)
+                runBlocking { orbitContainer.sendAction(5) }
             }
 
             Then("produces a correct series of states") {
-                testObserver.assertValueSequence(listOf(State(1), State(2)))
+                assertThat(result).isEqualTo(listOf(State(1), State(2)))
             }
 
             And("posts no side effects") {
-                sideEffects.assertNoValues()
+                assertThat(sideEffects.isEmpty()).isTrue()
             }
 
             And("the side effect is executed") {
@@ -387,8 +401,8 @@ internal class OrbitSpek : Spek({
         Scenario("non-posting side effects as non-first transformer") {
             lateinit var middleware: Middleware<State, String>
             lateinit var orbitContainer: BaseOrbitContainer<State, String>
-            lateinit var testObserver: TestObserver<State>
-            lateinit var sideEffects: TestObserver<String>
+            val result = mutableListOf<State>()
+            val sideEffects = mutableListOf<String>()
             val sideEffectList = mutableListOf<String>()
 
             Given("A middleware with a single side effect as the second transformer") {
@@ -403,29 +417,34 @@ internal class OrbitSpek : Spek({
             }
 
             When("sending actions") {
-                testObserver = orbitContainer.orbit.test()
-                sideEffects = orbitContainer.sideEffect.test()
-
-                orbitContainer.sendAction(5)
-
-                testObserver.awaitCount(2)
+                orbitContainer.orbit.startCollecting(result)
+                orbitContainer.sideEffect.startCollecting(sideEffects)
+                runBlocking { orbitContainer.sendAction(5) }
             }
 
             Then("produces a correct series of states") {
-                testObserver.assertValueSequence(listOf(State(1), State(2)))
+                assertThat(result).isEqualTo(listOf(State(1), State(2)))
             }
 
             And("posts no side effects") {
-                sideEffects.assertNoValues()
+                assertThat(sideEffects.isEmpty()).isTrue()
             }
 
             And("the side effect is executed") {
                 assertThat(sideEffectList).containsExactly("10")
             }
         }
+
+    }
+
+    afterEachTest {
+        Dispatchers.resetMain()
+        testScope.cleanupTestCoroutines()
     }
 })
 
+@ExperimentalCoroutinesApi
+@FlowPreview
 private fun createTestMiddleware(
     initialState: State = State(42),
     block: OrbitsBuilder<State, String>.() -> Unit
@@ -434,5 +453,3 @@ private fun createTestMiddleware(
 }
 
 private data class State(val id: Int)
-
-private const val AWAIT_TIMEOUT = 10000L

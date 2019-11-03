@@ -16,33 +16,29 @@
 
 package com.babylon.orbit
 
-import io.reactivex.Observable
-import io.reactivex.Scheduler
-import io.reactivex.schedulers.Schedulers
-import io.reactivex.subjects.PublishSubject
-import java.util.concurrent.Executors
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flattenMerge
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.scan
 
+@FlowPreview
+@ExperimentalCoroutinesApi
 data class ActionState<out STATE : Any, out ACTION : Any>(
     val inputState: STATE,
     val action: ACTION
 )
 
-fun <STATE : Any, EVENT : Any> Observable<ActionState<STATE, *>>.buildOrbit(
+@FlowPreview
+@ExperimentalCoroutinesApi
+fun <STATE : Any, EVENT : Any> Flow<ActionState<STATE, *>>.buildOrbitFlow(
     middleware: Middleware<STATE, EVENT>,
-    inputRelay: PublishSubject<Any>
-): Observable<STATE> {
-    val scheduler = createSingleScheduler()
-    return this
-        .observeOn(scheduler)
-        .publish { actions ->
-            Observable.merge(
-                middleware.orbits.map { transformer -> transformer(actions, inputRelay) }
-            )
-        }
+    inputRelay: suspend (Any) -> Unit
+): Flow<STATE> {
+    return flowOf(*middleware.orbits.map { transformer -> transformer(this, inputRelay) }.toTypedArray())
+        .flattenMerge()
         .scan(middleware.initialState) { currentState, partialReducer -> partialReducer(currentState) }
         .distinctUntilChanged()
-}
-
-private fun createSingleScheduler(): Scheduler {
-    return Schedulers.from(Executors.newSingleThreadExecutor())
 }

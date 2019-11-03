@@ -25,18 +25,17 @@ apply(from = "$rootDir/gradle/scripts/bintray.gradle.kts")
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
-    implementation(ProjectDependencies.rxJava2)
-    implementation(ProjectDependencies.rxJava2Extensions)
-    implementation(ProjectDependencies.rxRelay)
-    implementation(ProjectDependencies.rxKotlin)
     implementation(ProjectDependencies.javaxInject)
+    implementation(ProjectDependencies.coroutinesCore)
 
     // Testing
+    testImplementation(ProjectDependencies.coroutinesTest)
     GroupedDependencies.spekTestsImplementation.forEach { testImplementation(it) }
     GroupedDependencies.spekTestsRuntime.forEach { testRuntimeOnly(it) }
 }
 
 tasks.withType<Test> {
+    @Suppress("UnstableApiUsage")
     useJUnitPlatform {
         includeEngines = setOf("spek2")
     }

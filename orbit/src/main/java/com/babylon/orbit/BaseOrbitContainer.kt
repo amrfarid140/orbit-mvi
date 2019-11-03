@@ -16,43 +16,42 @@
 
 package com.babylon.orbit
 
-import io.reactivex.Observable
-import io.reactivex.Single
-import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.observables.ConnectableObservable
-import io.reactivex.rxkotlin.plusAssign
-import io.reactivex.subjects.PublishSubject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.channels.BroadcastChannel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ConflatedBroadcastChannel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 
+@FlowPreview
+@ExperimentalCoroutinesApi
 class BaseOrbitContainer<STATE : Any, SIDE_EFFECT : Any>(
     middleware: Middleware<STATE, SIDE_EFFECT>
 ) : OrbitContainer<STATE, SIDE_EFFECT> {
 
-    var state: Single<STATE>
-        private set
-
-    private val inputRelay: PublishSubject<Any> = PublishSubject.create()
-    override val orbit: ConnectableObservable<STATE>
-    override val sideEffect: Observable<SIDE_EFFECT> = middleware.sideEffect
-
-    private val disposables = CompositeDisposable()
+    private val state = ConflatedBroadcastChannel(middleware.initialState).asFlow()
+    private val input = BroadcastChannel<Any>(Channel.BUFFERED) // Creates a Buffered Broadcast channel with default buffer size
+    override val sideEffect: Flow<SIDE_EFFECT> = middleware.sideEffect
+    override val orbit: Flow<STATE>
 
     init {
-        state = Single.just(middleware.initialState)
-        orbit = inputRelay.doOnSubscribe { disposables += it }
-            .startWith(LifecycleAction.Created)
-            .map { ActionState(state.blockingGet(), it) } // Attaches the current state to the event
-            .buildOrbit(middleware, inputRelay)
-            .replay(1)
-        orbit.connect { disposables += it }
-        state = orbit
-            .first(middleware.initialState)
+
+        orbit = input
+            .asFlow()
+            .onStart { emit(LifecycleAction.Created) }
+            .flatMapLatest { input -> state.map { state -> ActionState(state, input) } }
+            .buildOrbitFlow(middleware) { input.send(it) }
     }
 
-    override fun sendAction(action: Any) {
-        inputRelay.onNext(action)
+    override suspend fun sendAction(action: Any) {
+        input.send(action)
     }
 
     override fun disposeOrbit() {
-        disposables.clear()
+        input.cancel()
     }
 }

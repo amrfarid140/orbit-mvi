@@ -57,6 +57,8 @@ dependencies {
     implementation(kotlin("stdlib-jdk8"))
 
     implementation(ProjectDependencies.androidLifecycleComponents)
+    implementation(ProjectDependencies.coroutinesCore)
+    implementation(ProjectDependencies.coroutinesAndroid)
     implementation(ProjectDependencies.androidAppCompat)
     implementation(ProjectDependencies.androidConstrainLayout)
     kapt(ProjectDependencies.androidLifecycleCompiler)
@@ -64,10 +66,6 @@ dependencies {
     // Koin Android ViewModel features
     implementation(ProjectDependencies.androidKoinViewModel)
     implementation(ProjectDependencies.androidRxBindings)
-
-    implementation(ProjectDependencies.rxJava2)
-    implementation(ProjectDependencies.rxKotlin)
-    implementation(ProjectDependencies.rxAndroid)
 
     implementation(ProjectDependencies.timber)
 

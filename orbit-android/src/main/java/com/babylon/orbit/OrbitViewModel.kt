@@ -16,23 +16,30 @@
 
 package com.babylon.orbit
 
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
-import com.uber.autodispose.android.lifecycle.autoDispose
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.CoroutineContext
 
+@FlowPreview
+@ExperimentalCoroutinesApi
 abstract class OrbitViewModel<STATE : Any, SIDE_EFFECT : Any>(
     middleware: Middleware<STATE, SIDE_EFFECT>
-) : ViewModel() {
+) : ViewModel(), CoroutineScope {
 
     constructor(
         initialState: STATE,
         init: OrbitsBuilder<STATE, SIDE_EFFECT>.() -> Unit
     ) : this(middleware(initialState, init))
 
-    private val container: AndroidOrbitContainer<STATE, SIDE_EFFECT> = AndroidOrbitContainer(middleware)
-
-    val state: STATE
-        get() = container.state
+    override val coroutineContext: CoroutineContext = Dispatchers.IO
+    private val container: OrbitContainer<STATE, SIDE_EFFECT> = BaseOrbitContainer(middleware)
 
     /**
      * Designed to be called in onStart or onResume, depending on your use case.
@@ -41,25 +48,23 @@ abstract class OrbitViewModel<STATE : Any, SIDE_EFFECT : Any>(
      * For example onStart -> onStop, onResume -> onPause, onCreate -> onDestroy.
      */
     fun connect(
-        lifecycleOwner: LifecycleOwner,
         stateConsumer: (STATE) -> Unit,
         sideEffectConsumer: (SIDE_EFFECT) -> Unit = {}
-    ) {
-
-        container.orbit
-            .autoDispose(lifecycleOwner)
-            .subscribe(stateConsumer)
-
-        container.sideEffect
-            .autoDispose(lifecycleOwner)
-            .subscribe(sideEffectConsumer)
+    ) = launch {
+        container.orbit.collect {
+            withContext(Dispatchers.Main) { stateConsumer(it) }
+        }
+        container.sideEffect.collect {
+            withContext(Dispatchers.Main) { sideEffectConsumer(it) }
+        }
     }
 
-    fun sendAction(action: Any) {
+    fun sendAction(action: Any) = launch {
         container.sendAction(action)
     }
 
     override fun onCleared() {
+        cancel()
         container.disposeOrbit()
     }
 }

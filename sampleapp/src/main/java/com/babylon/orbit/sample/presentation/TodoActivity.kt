@@ -49,14 +49,13 @@ class TodoActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        viewModel.connect(this, ::render)
+        viewModel.connect(::render)
     }
 
     private fun render(state: TodoScreenState) {
         progress_container.show(state.screenState == ScreenState.Loading)
         error_container.show(state.screenState == ScreenState.Error)
         recyclerView.show(state.screenState == ScreenState.Ready)
-
         if (state.screenState == ScreenState.Ready) {
             state.todoList?.map { todo ->
                 ToDoItem(
